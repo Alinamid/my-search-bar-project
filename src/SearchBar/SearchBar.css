@@ -1,0 +1,47 @@
+.search-bar {
+  position: relative;
+  width: 400px;
+  margin: 20px auto;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  padding-left: 30px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  transform: translateY(50%);
+  cursor: pointer;
+}
+
+.clear-icon {
+  position: absolute;
+  right: -10px;
+  transform: translateY(-150%);
+  cursor: pointer;
+  display: none;
+}
+
+.autocomplete-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  /* display: none; */
+}
+
+.autocomplete-list li {
+  padding: 10px;
+  cursor: pointer;
+}
+
+/* Add more styles as needed */
