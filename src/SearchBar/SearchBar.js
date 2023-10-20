@@ -1,120 +1,186 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import SearchResults from '../SearchResults/SearchResults';
-import './SearchBar.css'; 
+import './SearchBar.css';
+import { localDBAutocomplete, localDBResults } from "../data";
 
 const SearchBar = () => {
   const [inputValue, setInputValue] = useState('');
   const [autoCompleteItems, setAutoCompleteItems] = useState([]);
-  const [autocompleteVisible, setAutocompleteVisible] = useState(false);
+  const [autoCompleteVisible, setAutoCompleteVisible] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  
+  const [localDBAutocompleteSave, setLocalDBAutocomplete] = useState(localDBAutocomplete);
+  const [searchTimeInSeconds, setSearchTimeInSeconds] = useState(null);
 
-  const localDBAutocomplete = [
-    { title: 'Item 1', description: 'Description 1' },
-    { title: 'Item 2', description: 'Description 2' },
-    // ...
-  ];
 
-  const localDBResults = [
-    { title: 'Result 1', description: 'Description 1', link: 'https://example.com/1' },
-    { title: 'Result 2', description: 'Description 2', link: 'https://example.com/2' },
-    // ...
-  ];
+  const inputRef = useRef(null);
+  const autocompleteRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current.focus();
+
+    const handleClickOutside = (event) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target)) {
+        setAutoCompleteVisible(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+
+  const handleAutocomplete = (value) => {
+    const existingItemIndex = localDBAutocompleteSave.findIndex(
+      (item) => item.title.toLowerCase() === value.toLowerCase()
+    );
+
+    let filteredItems;
+    if (existingItemIndex !== -1) {
+      const existingItem = localDBAutocompleteSave[existingItemIndex];
+      filteredItems = [
+        existingItem,
+        ...localDBAutocompleteSave.slice(0, existingItemIndex),
+        ...localDBAutocompleteSave.slice(existingItemIndex + 1),
+      ];
+    } else {
+      filteredItems = localDBAutocompleteSave.filter(
+        (item) =>
+          item.title.toLowerCase().startsWith(value.toLowerCase()) ||
+          item.title.toLowerCase().trim() === value.toLowerCase().trim()
+      );
+    }
+
+    const slicedItems = filteredItems.slice(0, 10);
+
+    setAutoCompleteItems(slicedItems.map((item, index) => ({ ...item, isRecent: index === 0 })));
+    setAutoCompleteVisible(slicedItems.length > 0);
+  };
 
   const handleInputChange = (e) => {
     const value = e.target.value;
     setInputValue(value);
-
-    // Use the selected item to query the second database (localDBResults)
-    window.console.log('localDBResults', localDBAutocomplete);
-
-    // Implement autocomplete logic
-    const filteredItems = localDBAutocomplete.filter(item =>
-      item.title.toLowerCase().startsWith(value.toLowerCase())
-    ).slice(0, 10);
-
-    setAutoCompleteItems(filteredItems);
+    handleAutocomplete(value);
   };
 
-  const handleInputFocus = () => {
-    // Show autocomplete items on input focus if available
-    if (autoCompleteItems.length > 0) {
-      setAutocompleteVisible(true);
+  const handleEnterKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      const searchStartTime= Date.now();
+
+      const results = localDBResults.filter((result) =>
+        result.title.toLowerCase().includes(inputValue.toLowerCase())
+      );
+
+      setSearchResults(results);
+      setAutoCompleteVisible(false);
+
+      const existingItemIndex = localDBAutocompleteSave.findIndex(
+        (item) => item.title.toLowerCase().trim() === inputValue.toLowerCase().trim()
+      );
+
+      if (existingItemIndex !== -1) {
+        const existingItem = localDBAutocompleteSave[existingItemIndex];
+        const updatedAutocompleteList = [
+          existingItem,
+          ...localDBAutocompleteSave.slice(0, existingItemIndex),
+          ...localDBAutocompleteSave.slice(existingItemIndex + 1),
+        ];
+
+        setAutoCompleteItems(updatedAutocompleteList);
+        setLocalDBAutocomplete(updatedAutocompleteList);
+      } else {
+        const newAutocompleteItem = { title: inputValue };
+
+        setAutoCompleteItems((prevItems) => [newAutocompleteItem, ...prevItems]);
+        setLocalDBAutocomplete((prevAutocomplete) => [newAutocompleteItem, ...prevAutocomplete]);
+      }
+
+      const searchEndTime = Date.now();
+      const timeInSeconds = searchEndTime && searchStartTime
+      ? (searchEndTime - searchStartTime) / 1000
+      : null;
+      setSearchTimeInSeconds(timeInSeconds);
     }
   };
 
-  const handleAutocompleteItemClick = (item) => {
-    setInputValue(item.title);
-    // setAutoCompleteItems([]);
-    setAutocompleteVisible(false);
+  const handleInputFocus = () => {
+    setAutoCompleteVisible(true);
+    handleAutocomplete(inputValue);
+  };
 
-    // Use the selected item to query the second database (localDBResults)
-    const results = localDBResults.filter(result =>
+  const handleAutocompleteItemClick = (item) => {
+    const searchStartTime = Date.now();
+    setInputValue(item.title);
+    setAutoCompleteVisible(false);
+
+    const results = localDBResults.filter((result) =>
       result.title.toLowerCase().includes(item.title.toLowerCase())
     );
-
     setSearchResults(results);
+    const searchEndTime = Date.now();
+    const timeInSeconds = (searchEndTime - searchStartTime) / 1000;
+    setSearchTimeInSeconds(timeInSeconds);
   };
 
-  // const handleOutsideClick = (e) => {
-  //   // Hide autocomplete items when clicking outside the search bar
-  //   if (!e.target.closest('.search-bar')) {
-  //     setAutocompleteVisible(false);
-  //   }
-  // }
+  const handleRemoveItemClick = (e, item) => {
+    e.stopPropagation();
+    const updatedAutocompleteList = localDBAutocompleteSave.filter(
+      (autocompleteItem) => autocompleteItem.title !== item.title
+    );
 
-  const handleInputBlur = () => {
-    // Hide autocomplete items on input blur
-    setAutocompleteVisible(false);
+    setLocalDBAutocomplete(updatedAutocompleteList);
+    setAutoCompleteItems(updatedAutocompleteList);
   };
-
-  // useEffect(() => {
-  //   document.addEventListener('click', handleOutsideClick);
-  //   return () => {
-  //     document.removeEventListener('click', handleOutsideClick);
-  //   };
-  // }, []); // Add an empty dependency array to ensure the event listener is added and removed properly
-
 
   return (
-    <div className="search-bar">
-      <i
-        className="search-icon"
-        onClick={() => setAutocompleteVisible(!autocompleteVisible)}
-      >
-        &#128269;
-      </i>
-      <input
-        type="text"
-        value={inputValue}
-        onChange={handleInputChange}
-        onBlur={handleInputBlur}
-        onFocus={handleInputFocus}
-        onKeyUp={(e) => {
-          if (e.key === 'Enter') {
-            setAutocompleteVisible(true);
-          }
-        }}
-        placeholder="Search..."
-        autoFocus
-      />
-      <i
-        className="clear-icon"
-        style={{ display: inputValue ? 'block' : 'none' }}
-        onClick={() => setInputValue('')}
-      >
-        &#10006;
-      </i>
-      {autocompleteVisible && (
-        <ul className="autocomplete-list">
-          {autoCompleteItems.map((item, index) => (
-            <li key={index} onClick={() => handleAutocompleteItemClick(item)}>
-              {item.title}
-            </li>
-          ))}
-        </ul>
-      )}
-      <SearchResults results={searchResults} />
+    <div>
+      <div className="search-bar">
+        <i className="search-icon">&#128269;</i>
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onKeyUp={handleEnterKeyPress}
+          placeholder="Search..."
+          autoFocus
+        />
+        <i
+          className="clear-icon"
+          style={{ display: inputValue ? 'block' : 'none' }}
+          onClick={() => setInputValue('')}
+        >
+          &#10006;
+        </i>
+        {autoCompleteVisible && (
+          <div ref={autocompleteRef}>
+            <ul className="autocomplete-list">
+              {autoCompleteItems.map((item, index) => (
+                <li key={index} onClick={() => handleAutocompleteItemClick(item)}>
+                  {item.isRecent ? (
+                    <>
+                      <i className="clock-icon">🕒</i>
+                      {item.title}
+                    </>
+                  ) : (
+                    <>
+                      <i className="search-icon">🔍</i>
+                      {item.title}
+                    </>
+                  )}
+                  <div className="remove-button" onClick={(e) => handleRemoveItemClick(e, item)}>
+                    Remove
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <SearchResults results={searchResults} searchTimeInSeconds={searchTimeInSeconds} />
+
     </div>
   );
 };

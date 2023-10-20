@@ -33,15 +33,26 @@ input {
   position: absolute;
   top: 100%;
   left: 0;
-  width: 100%;
+  width: 110%;
   background-color: #fff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  /* display: none; */
+  display: block !important;
+  border-bottom-left-radius: 3%;
+  border-bottom-right-radius: 3%;
 }
 
 .autocomplete-list li {
   padding: 10px;
   cursor: pointer;
+  margin-left: 16px;
 }
 
-/* Add more styles as needed */
+.autocomplete-list li > .search-icon, .autocomplete-list li > .clock-icon {
+  position: absolute;
+  left: 5px;
+  transform: translateY(0%);
+}
+
+.remove-button {
+  float: right;
+}
